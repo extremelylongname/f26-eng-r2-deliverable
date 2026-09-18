@@ -1,33 +1,50 @@
-import { createServerSupabaseClient } from "@/lib/server-utils";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { getCurrentUser } from "@/lib/server-utils";
 import { cn } from "@/lib/utils";
+import { Menu } from "lucide-react";
 import Link from "next/link";
 
+const homeLink = { href: "/", label: "Home" };
+const signedInLinks = [
+  { href: "/species", label: "Species" },
+  { href: "/species-speed", label: "Species Speed" },
+  { href: "/users", label: "Users" },
+  { href: "/species-chatbot", label: "Species Chatbot" },
+];
+
 export default async function Navbar({ className, ...props }: React.HTMLAttributes<HTMLElement>) {
-  // Create supabase server component client and obtain user session from stored cookie
-  const supabase = createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const links = (await getCurrentUser()) ? [homeLink, ...signedInLinks] : [homeLink];
+
   return (
-    <nav className={cn("flex items-center space-x-4 lg:space-x-6", className)} {...props}>
-      <Link href="/" className="text-sm font-medium transition-colors hover:text-primary">
-        Home
-      </Link>
-      {user && (
-        <>
-          <Link href="/species" className="text-sm font-medium transition-colors hover:text-primary">
-            Species
+    <nav className={cn("flex items-center", className)} {...props}>
+      {/* Inline links from the md breakpoint up; below it a menu button, so the links never overflow the header */}
+      <div className="hidden items-center space-x-4 md:flex lg:space-x-6">
+        {links.map(({ href, label }) => (
+          <Link key={href} href={href} className="text-sm font-medium transition-colors hover:text-primary">
+            {label}
           </Link>
-          <Link href="/species-speed" className="text-sm font-medium transition-colors hover:text-primary">
-            Species Speed
-          </Link>
-        </>
-      )}
-      {user && (
-        <Link href="/species-chatbot" className="text-sm font-medium transition-colors hover:text-primary">
-          Species Chatbot
-        </Link>
-      )}
+        ))}
+      </div>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="sm" className="h-8 w-8 px-0 md:hidden" aria-label="Open navigation menu">
+            <Menu className="h-5 w-5" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          {links.map(({ href, label }) => (
+            <DropdownMenuItem key={href} asChild>
+              <Link href={href}>{label}</Link>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </nav>
   );
 }

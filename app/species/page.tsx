@@ -1,37 +1,36 @@
 import { Separator } from "@/components/ui/separator";
 import { TypographyH2 } from "@/components/ui/typography";
-import { createServerSupabaseClient } from "@/lib/server-utils";
+import { createServerSupabaseClient, getCurrentUser } from "@/lib/server-utils";
 import { redirect } from "next/navigation";
 import AddSpeciesDialog from "./add-species-dialog";
-import SpeciesCard from "./species-card";
+import SpeciesList from "./species-list";
 
-export default async function SpeciesList() {
-  // Create supabase server component client and obtain user session from stored cookie
-  const supabase = createServerSupabaseClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+export default async function SpeciesPage() {
+  const user = await getCurrentUser();
 
-  if (!session) {
+  if (!user) {
     // this is a protected route - only users who are signed in can view this route
     redirect("/");
   }
 
-  // Obtain the ID of the currently signed-in user
-  const sessionId = session.user.id;
-
-  const { data: species } = await supabase.from("species").select("*").order("id", { ascending: false });
+  // Join each species with its author's public profile so the detailed view can show who added it
+  const { data: species, error } = await createServerSupabaseClient()
+    .from("species")
+    .select("*, profiles(display_name, email, biography)")
+    .order("id", { ascending: false });
 
   return (
     <>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
         <TypographyH2>Species List</TypographyH2>
-        <AddSpeciesDialog userId={sessionId} />
+        <AddSpeciesDialog userId={user.id} />
       </div>
       <Separator className="my-4" />
-      <div className="flex flex-wrap justify-center">
-        {species?.map((species) => <SpeciesCard key={species.id} species={species} />)}
-      </div>
+      {error ? (
+        <p className="text-destructive">Could not load species: {error.message}</p>
+      ) : (
+        <SpeciesList species={species} sessionId={user.id} />
+      )}
     </>
   );
 }

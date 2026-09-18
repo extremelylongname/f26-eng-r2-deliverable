@@ -1,14 +1,10 @@
 import { Button } from "@/components/ui/button";
-import { createServerSupabaseClient } from "@/lib/server-utils";
+import { createServerSupabaseClient, getCurrentUser } from "@/lib/server-utils";
 import Link from "next/link";
 import UserNav from "./user-nav";
 
 export default async function AuthStatus() {
-  // Create supabase server component client and obtain user session from stored cookie
-  const supabase = createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     return (
@@ -18,7 +14,7 @@ export default async function AuthStatus() {
     );
   }
 
-  const { data, error } = await supabase.from("profiles").select().eq("id", user.id);
+  const { data, error } = await createServerSupabaseClient().from("profiles").select().eq("id", user.id);
 
   if (error ?? data.length !== 1) {
     return;

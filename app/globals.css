@@ -20,7 +20,8 @@
     --input: 214.3 31.8% 91.4%;
 
     --primary: 158 89.6% 45.1%;
-    --primary-foreground: 210 40% 98%;
+    /* Dark text on the bright green: white on it is only 1.8:1 */
+    --primary-foreground: 222.2 47.4% 11.2%;
 
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -28,7 +29,8 @@
     --accent: 210 40% 96.1%;
     --accent-foreground: 222.2 47.4% 11.2%;
 
-    --destructive: 0 100% 75%;
+    /* Red that reaches 4.5:1 both as text on white and under white text */
+    --destructive: 0 72% 51%;
     --destructive-foreground: 210 40% 98%;
 
     --ring: 215 20.2% 65.1%;
@@ -62,8 +64,9 @@
     --accent: 216 34% 17%;
     --accent-foreground: 210 40% 98%;
 
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 210 40% 98%;
+    /* Light red that reaches 4.5:1 as text on the dark background, so it carries dark text itself */
+    --destructive: 0 91% 71%;
+    --destructive-foreground: 224 71% 4%;
 
     --ring: 216 34% 17%;
 
@@ -80,5 +83,49 @@
     font-feature-settings:
       "rlig" 1,
       "calt" 1;
+  }
+}
+
+@layer components {
+  /* Rendered Markdown (chatbot replies): puts back the list markers, heading weights and block spacing that
+     Tailwind's preflight resets */
+  .markdown > * + * {
+    @apply mt-2;
+  }
+  .markdown ul {
+    @apply list-disc pl-5;
+  }
+  .markdown ol {
+    @apply list-decimal pl-5;
+  }
+  .markdown li + li {
+    @apply mt-1;
+  }
+  .markdown h1,
+  .markdown h2,
+  .markdown h3,
+  .markdown h4 {
+    @apply font-semibold;
+  }
+  .markdown h1 {
+    @apply text-lg;
+  }
+  .markdown h2 {
+    @apply text-base;
+  }
+  .markdown a {
+    @apply underline;
+  }
+  .markdown code {
+    @apply rounded bg-muted px-1 font-mono text-xs;
+  }
+  .markdown pre {
+    @apply overflow-x-auto rounded bg-muted p-2;
+  }
+  .markdown pre code {
+    @apply bg-transparent p-0;
+  }
+  .markdown blockquote {
+    @apply border-l-2 border-border pl-3 text-muted-foreground;
   }
 }

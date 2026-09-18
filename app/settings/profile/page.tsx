@@ -1,5 +1,5 @@
 import { Separator } from "@/components/ui/separator";
-import { createServerSupabaseClient } from "@/lib/server-utils";
+import { createServerSupabaseClient, getCurrentUser } from "@/lib/server-utils";
 import { redirect } from "next/navigation";
 import ProfileForm from "./profile-form";
 
@@ -13,17 +13,14 @@ function SettingsError({ message }: { message: string }) {
 }
 
 export default async function Settings() {
-  const supabase = createServerSupabaseClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  const user = await getCurrentUser();
 
-  if (!session) {
+  if (!user) {
     // this is a protected route - only users who are signed in can view this route
     redirect("/");
   }
 
-  const { data, error } = await supabase.from("profiles").select().eq("id", session.user.id);
+  const { data, error } = await createServerSupabaseClient().from("profiles").select().eq("id", user.id);
 
   if (error) {
     return <SettingsError message={error.message} />;

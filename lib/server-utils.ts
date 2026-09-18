@@ -18,3 +18,12 @@ export const createServerSupabaseClient = cache(() => {
   });
   return supabase;
 });
+
+// The signed-in user, verified with the auth server (getSession only trusts the cookie). Cached per request so the
+// navbar, the auth status and the page share a single round trip.
+export const getCurrentUser = cache(async () => {
+  const {
+    data: { user },
+  } = await createServerSupabaseClient().auth.getUser();
+  return user;
+});
