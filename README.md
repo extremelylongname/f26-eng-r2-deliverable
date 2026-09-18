@@ -2,6 +2,10 @@
 
 - [T4SG Fall 2026 Application Deliverable](#t4sg-fall-2026-application-deliverable)
   - [Introduction](#introduction)
+  - [What was built (deliverable summary)](#what-was-built-deliverable-summary)
+    - [Design notes](#design-notes)
+    - [Files of interest](#files-of-interest)
+  - [Data cleaning notebook (Feature 3)](#data-cleaning-notebook-feature-3)
   - [Setup](#setup)
     - [Install `npm` and `node`](#install-npm-and-node)
     - [Clone repository](#clone-repository)
@@ -42,6 +46,66 @@ The project uses Next.js, a React-based framework with significant optimizations
 
 ---
 
+## What was built (deliverable summary)
+
+This repository contains the completed T4SG Fall 2026 engineering deliverable. The three required features and the stretch goals listed below are implemented on top of the starter, using the same stack (Next.js app router, `shadcn/ui`, Supabase, Typescript). The only added dependencies are the `d3-*` modules for the speed chart, `react-markdown` for chatbot replies, `@anthropic-ai/sdk` for the chatbot backend, and `word2number` inside the data cleaning notebook. Every page except the home page requires a login.
+
+- **Feature 1: detailed view.** Every species card has a "Learn More" button that opens a dialog with the image, scientific and common name, kingdom, endangered status, total population and the full description, followed by who added the entry and the comments on it.
+- **Feature 2: edit species.** Cards for species you added show an Edit button that opens the same form used to add a species, pre-filled with the stored values; saving updates the row and refreshes the list. Only the author sees the button, and the database rejects edits from anyone else.
+- **Feature 3: data cleaning and speed chart.** The messy animal spreadsheet is cleaned in `data-cleaning/clean_animal_data.ipynb` into `public/sample_animals.csv` (144 animals; see [Data cleaning notebook](#data-cleaning-notebook-feature-3)). The Species Speed page draws a D3 bar chart of speed grouped by diet, showing the top N animals per diet (5, 10, 15 or all; default 10), with diet filter buttons, a hover tooltip, a legend, and a switch to a plain table of the same rows.
+- **Stretch goal: delete species.** Authors get a Delete button next to Edit; a confirmation dialog states that the species and its comments will be removed permanently before anything is deleted.
+- **Stretch goal: endangered flag.** A new `endangered` boolean column on `species` (default `false`) is set with a checkbox in the add and edit forms, shown in the detailed view, and marked with a red "Endangered" badge on the card.
+- **Stretch goal: author info in the detailed view.** The "Added by" section shows the author's display name, email and biography, joined from the `profiles` table.
+- **Stretch goal: Users page.** `/users` (linked in the navbar) lists every profile with display name, email and biography, sorted by display name, with a "You" badge on your own card.
+- **Stretch goal: search.** A search box above the species list filters by scientific name, common name or description using a case-insensitive substring match, and shows how many species match.
+- **Stretch goal: comments.** A new `comments` table lets any signed-in user post comments (1 to 1000 characters) on a species from the detailed view. Comments are listed newest first with the author's name and time, each user can delete only their own comments (after a confirmation), and deleting a species deletes its comments.
+- **Stretch goal: Wikipedia autofill.** The Add Species dialog has a "Search Wikipedia" box that looks up the article summary and fills in the description and image URL; a missing article or an ambiguous title produces an error message instead.
+- **Stretch goal: species chatbot.** `/species-chatbot` sends questions to `POST /api/chat`, which requires a signed-in user (401 otherwise), validates the message (1 to 2000 characters, else 400), and asks the Anthropic API for an answer that a system prompt restricts to species topics. A missing key or a provider failure returns 502 and the page shows an "unavailable" message; replies are rendered as Markdown.
+
+### Design notes
+
+- **One form, one schema.** `SpeciesForm` (`app/species/species-form.tsx`) and the zod schema in `app/species/species-schema.ts` are shared by the add and edit dialogs, so the validation rules (required scientific name, valid image URL, whole positive population within the Postgres integer range, blank text stored as `null`) live in one place and the validated data goes straight into the insert or update.
+- **Joins through Supabase relationships.** Author details and comment authors come from the foreign keys `species.author -> profiles` and `comments.author -> profiles` using `select("*, profiles(...)")`. The joined row shapes are typed in `app/species/types.ts` from the generated `lib/schema.ts`, so no type assertions are needed.
+- **Client-side search.** The species page (a server component) fetches the full list once; the search box filters that list in the browser, so typing never causes a database round trip.
+- **Author-only gating is enforced twice.** Edit, Delete and comment-delete buttons only render for the author (the session user id is compared with the row's `author`), and the row-level security policies in `setup.sql` enforce the same rule in the database, so the UI check is a convenience rather than the security boundary.
+- **Comments load on demand.** The comment list is fetched inside the detail dialog, which only mounts while it is open, so loading the species list does not query comments for every card.
+- **Chart legibility.** With 144 animals, one bar per animal makes every label unreadable, so the chart defaults to the top 10 per diet, grouped carnivore, herbivore, omnivore and sorted by speed within each group; the diet filter, "top N" select, tooltip and table view expose everything the default view leaves out. Bars can be stepped through with the arrow keys, and colours come from CSS variables so the chart follows the light/dark theme.
+- **One auth helper on the server.** `getCurrentUser` in `lib/server-utils.ts` verifies the session with Supabase's auth server (`auth.getUser`, rather than trusting the cookie) and is cached per request; the protected pages and the chat API route all use it.
+
+### Files of interest
+
+- Species list and search: `app/species/page.tsx`, `app/species/species-list.tsx`, `app/species/species-card.tsx`
+- Detailed view (Feature 1), author info and comments: `app/species/species-detail-dialog.tsx`, `app/species/species-comments.tsx`
+- Add and edit (Feature 2), shared form, schema and Wikipedia autofill: `app/species/add-species-dialog.tsx`, `app/species/edit-species-dialog.tsx`, `app/species/species-form.tsx`, `app/species/species-schema.ts`, `app/species/wikipedia-search.tsx`
+- Delete: `app/species/delete-species-button.tsx`
+- Row types: `app/species/types.ts`, `lib/schema.ts` (generated with `npm run types`)
+- Users page: `app/users/page.tsx`
+- Speed chart (Feature 3): `app/species-speed/page.tsx`, `app/species-speed/animal-speed-graph.tsx`, `public/sample_animals.csv`
+- Data cleaning (Feature 3): `data-cleaning/clean_animal_data.ipynb`, `data-cleaning/messy_animals.csv`
+- Chatbot: `app/species-chatbot/page.tsx`, `app/api/chat/route.ts`, `lib/services/species-chat.ts`, `env.mjs`
+- Database: `setup.sql` (fresh databases), `migrate.sql` (existing databases), `seed.sql`
+- Server helpers: `lib/server-utils.ts`
+
+---
+
+## Data cleaning notebook (Feature 3)
+
+`data-cleaning/clean_animal_data.ipynb` turns the raw spreadsheet export (`data-cleaning/messy_animals.csv`, 205 rows, never edited by hand) into the CSV the Species Speed chart reads. Its output, 144 rows with the columns `name`, `speed` (km/h) and `diet`, is committed as `public/sample_animals.csv`. The same file is also kept in `data-cleaning/` under the file name the assignment asks for.
+
+**Running it.** Open the notebook in Google Colab and run the cells top to bottom: the first cell installs `word2number` (not preinstalled in Colab), the third cell opens a file picker for `messy_animals.csv`, and the last cell downloads the cleaned CSV. Run locally (Jupyter with `pandas`, `numpy` and `word2number` installed), the notebook instead reads `messy_animals.csv` from its own folder and writes the result straight to `public/sample_animals.csv`.
+
+**Cleaning rules.** Only the `Animal`, `Average Speed (km/h)` and `Diet` columns are used, renamed to `name`, `speed` and `diet`. Then:
+
+- Every value is trimmed; blank cells become missing values, and rows missing a name, speed or diet are dropped.
+- Speeds written as words (`fifty-six`) are converted to numbers with `word2number`; ranges such as `40-64` become their average (52); notes in parentheses such as `(in water)` are ignored; `Not Applicable` and `Varies` cannot be turned into a number, so those rows are dropped. Speeds are rounded to two decimals.
+- Diets are lower-cased and reduced to the first listed value (`Carnivore, Piscivore` counts as carnivore), and only `carnivore`, `herbivore` and `omnivore` are kept; rows such as `Insectivore` or `Scavenger` are dropped because the chart compares those three groups.
+- Names whose accents were double-encoded in the sheet (`GalÃ¡pagos`) are repaired (`Galápagos`).
+- Duplicate animals are removed, keeping the first occurrence, so each bar in the chart is a unique animal.
+
+The result is 144 animals (60 carnivores, 49 herbivores, 35 omnivores), sorted by name. The notebook's final cell repeats these rules with the reasoning behind each one.
+
+---
+
 ## Setup
 
 To set up the starter code for _Biodiversity Hub_, follow these instructions in order.
@@ -55,7 +119,7 @@ You should first update your `npm` and `node` packages to the latest version by 
 `cd` into a desired destination folder, then clone the repo (preferably using SSH):
 
 ```shell
-git clone git@github.com:hcs-t4sg/f25-eng-r2-deliverable.git
+git clone git@github.com:hcs-t4sg/f26-eng-r2-deliverable.git
 ```
 
 #### Package installation
@@ -64,7 +128,7 @@ git clone git@github.com:hcs-t4sg/f25-eng-r2-deliverable.git
 
    ```bash
    # Navigate into the project directory
-   cd f25-eng-r2-deliverable
+   cd f26-eng-r2-deliverable
 
    # Open in VSCode
    code .
@@ -78,19 +142,19 @@ git clone git@github.com:hcs-t4sg/f25-eng-r2-deliverable.git
 3. Run: `npm install` (`npm i` for short)
 
    - If you get something like "command not found", you might not have `npm` installed.
-   - Make sure you're running `npm install` inside the project directory. That is, your terminal should indicate you're inside the `f25-eng-r2-deliverable` directory. If you're using MacOS (with a `zsh` terminal), this probably looks something like:
+   - Make sure you're running `npm install` inside the project directory. That is, your terminal should indicate you're inside the `f26-eng-r2-deliverable` directory. If you're using MacOS (with a `zsh` terminal), this probably looks something like:
      ```bash
-     username@some-address f25-eng-r2-deliverable % npm install
+     username@some-address f26-eng-r2-deliverable % npm install
      ```
 
 - If successful you should see something like:
 
   ```bash
   added 414 packages, and audited 415 packages in 13s
-  
+
   149 packages are looking for funding
   run `npm fund` for details
-  
+
   found 0 vulnerabilities
   ```
 
@@ -122,11 +186,20 @@ git clone git@github.com:hcs-t4sg/f25-eng-r2-deliverable.git
 
    You should not share these keys publicly, especially the `SECRET_SUPABASE_CONNECTION_STRING`.
 
+3. Optional, only needed for the Species Chatbot: add an `ANTHROPIC_API_KEY` to `.env`. Create a key at [console.anthropic.com](https://console.anthropic.com) (API Keys), then set it in `.env`:
+
+   ```shell
+   ANTHROPIC_API_KEY="sk-ant-..."
+   ```
+
+   When you deploy, add the same variable to your hosting provider's environment variables (Vercel: Project Settings > Environment Variables). The key is server-only: `env.mjs` lists it under `server` and `lib/services/species-chat.ts` is marked `server-only`, so it is never sent to the browser. If the variable is missing or empty, every other page works as usual; the `/api/chat` route answers `502` and the chatbot page shows a message saying the chatbot is temporarily unavailable.
+
 #### Supabase Database Setup
 
 1. In your Supabase project dashboard, navigate to `SQL Editor` in the left sidebar, then click `(+) New Query` > `New blank query` or type the follwoing directly into the already opened editor. If you wish, you can rename the query from "Untitled Query" to something else by clicking the dropdown in the left sidebar.
 2. In your starter code, there is a `setup.sql` file containing a SQL script that will set up the database for you. Copy the entire contents of the file and paste it into your new query.
 3. Run the query with the button in the bottom right or by pressing `cmd` + `return`. In the results panel, you should see the message `Success. No rows returned`. If you're having issues with this, contact Eli and Itzel (the directors of engineering)!
+4. If your database was created with the original starter's `setup.sql` (before the features in this deliverable were added), also run `migrate.sql` in the SQL editor the same way. It is idempotent (safe to run more than once) and brings an existing database up to date: it adds the `endangered` column to `species`, creates the `comments` table with its row-level security policies, and tightens the `profiles` read policy so only signed-in users can read profile rows (they contain email addresses). A fresh database gets all of this from `setup.sql`, so `migrate.sql` is not needed there.
 
 #### Run the webapp and log in
 
@@ -147,7 +220,7 @@ git clone git@github.com:hcs-t4sg/f25-eng-r2-deliverable.git
 
 #### Seed species data
 
-We gave you some example species data to seed your database! Follow similar steps as in the "Supabase Database Setup" section to set it up. Make sure you've **confirmed that the `profiles` table is non-empty** (see previous step).
+We gave you some example species data to seed your database! Follow similar steps as in the "Supabase Database Setup" section to set it up. Make sure you've **confirmed that the `profiles` table is non-empty** (see previous step). `seed.sql` now also fills the `endangered` column, so the column must exist first: it does if you ran the current `setup.sql`, or `migrate.sql` on an older database.
 
 1. In your Supabase project dashboard, navigate to `SQL Editor` in the left sidebar, then click `(+) New Query` > `New blank query`. If you wish, you can rename the query from "Untitled Query" to something else by clicking the dropdown in the left sidebar.
 2. In your starter code, there is a `seed.sql` file containing a SQL script that will set up the database for you. Copy the entire contents of the file and paste it into your new query.
@@ -411,3 +484,8 @@ Formats Typescript errors to be more human-readable.
 ## Deployment guides
 
 Deployment guides for [Vercel](https://create.t3.gg/en/deployment/vercel), [Netlify](https://create.t3.gg/en/deployment/netlify) and [Docker](https://create.t3.gg/en/deployment/docker). The easiest way to deploy is with Vercel, which was created by the creators of Next.js!
+
+After deploying, two things must be configured outside the code:
+
+1. **Supabase redirect URLs.** In your Supabase project, go to Authentication > URL Configuration. Set the Site URL to your deployed address (for example `https://<your-vercel-domain>`) and add `https://<your-vercel-domain>/**` under Redirect URLs. The login form asks Supabase to send the magic link back to `<current origin>/auth/callback`, and Supabase only honours that when the address is on this list; otherwise the link goes to the default Site URL (`localhost`) and logging in on the deployed site fails.
+2. **Environment variables in Vercel.** In Project Settings > Environment Variables add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` with the same values as in your `.env`, and optionally `ANTHROPIC_API_KEY` for the Species Chatbot. `SECRET_SUPABASE_CONNECTION_STRING` is only used by `npm run types` and is not needed on Vercel. Redeploy after changing variables.
