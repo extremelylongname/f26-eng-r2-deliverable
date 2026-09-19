@@ -8,8 +8,6 @@ export const env = createEnv({
    */
   server: {
     NODE_ENV: z.enum(["development", "test", "production"]),
-    // Optional so builds and deploys work before a key is configured; without it the chatbot route answers 502
-    ANTHROPIC_API_KEY: z.string().min(1).optional(),
   },
 
   /**
@@ -29,7 +27,6 @@ export const env = createEnv({
    */
   runtimeEnv: {
     NODE_ENV: process.env.NODE_ENV,
-    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
     // NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -39,8 +36,4 @@ export const env = createEnv({
    * This is especially useful for Docker builds.
    */
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
-  /**
-   * Treat `ANTHROPIC_API_KEY=""` (as shipped in .env.example) the same as leaving the variable out.
-   */
-  emptyStringAsUndefined: true,
 });

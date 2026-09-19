@@ -15,7 +15,6 @@ const signedInLinks = [
   { href: "/species", label: "Species" },
   { href: "/species-speed", label: "Species Speed" },
   { href: "/users", label: "Users" },
-  { href: "/species-chatbot", label: "Species Chatbot" },
 ];
 
 export default async function Navbar({ className, ...props }: React.HTMLAttributes<HTMLElement>) {
